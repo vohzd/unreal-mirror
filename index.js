@@ -1,39 +1,49 @@
 /* eslint-disable no-new */
 /* eslint-disable new-cap */
-// import fs from "fs";
 
-import { existsSync, readFileSync, writeFileSync } from 'fs'
+import { existsSync, readFileSync, writeFileSync } from 'fs';
 
-import { fdir } from 'fdir'
-import { parse as parseYAML } from 'yaml'
+import { outputFile } from 'fs-extra';
 
-// const UNREAL_METADATA_PATH = '../unreal-archive-data/content/Unreal Tournament'
-// // const UNREAL_METADATA_PATH = "../unreal-archive-data/content/Unreal Tournament/Maps/BunnyTrack/I/0/0/2e133b/ctf-bt-interscope-v2_[002e133b].yml";
-const UNREAL_METADATA_PATH = '../unreal-archive-data/content/Unreal Tournament/Maps/BunnyTrack/I/0/0'
-// // const UNREAL_METADATA_PATH = '../unreal-archive-data/content/Unreal Tournament/Maps/BunnyTrack/I/'
+import slugify from '@sindresorhus/slugify';
+import axios from 'axios';
+import { fdir } from 'fdir';
+import { parse as parseYAML } from 'yaml';
 
+// const UNREAL_METADATA_PATH = '../unreal-archive-data/content/Unreal Tournament/Maps/BunnyTrack'
+const UNREAL_METADATA_PATH = '../unreal-archive-data/content'
 const YAML_SOURCE_FILES_PATH = './yaml-source-files.json'
-const FILE_METADATA_PATH = './file-metadata-small-sample.json'
+// const FILE_METADATA_PATH = './file-metadata-small-sample.json'
+const FILE_METADATA_PATH = './file-metadata-full.json'
+
+
+const DOWNLOAD_QUEUE_PATH = './download-queue.json'
+const FAILED_DOWNLOADS = './failed-downloads.json'
+
+
+const CONCURRENCY_LIMIT = 6;
+
+const queue = [];
+const failedItems = []
 
 function l (s) {
   return console.log(`STATUS: ${s}`)
 }
 
+
 function createFileMeta () {
-  l('Reading file')
+  l('createFileMeta')
   const files = readFileJson(YAML_SOURCE_FILES_PATH)
   const tempData = []
 
   files.forEach((path, i) => {
-    l(`Reading file ${i + 1}`)
+    l(`Creating item ${i + 1}`)
 
     try {
       const contents = readFileYaml(path)
-      console.log(contents)
-
       tempData.push(contents)
     } catch (e) {
-      l(`loop failed at position ${i}`)
+      l(`Loop failed at position ${i}`)
       console.log(e)
     }
   })
@@ -43,6 +53,78 @@ function createFileMeta () {
     l('Creating file')
     writeFileSync(FILE_METADATA_PATH, JSON.stringify(tempData))
   }
+}
+
+function getFullFilePath(file){
+  const firstPath = `../unrealarchive/${slugify(file.game)}`;
+  const secondPath = slugify(`${file.contentType}s`)
+  let fullFilePath = `${firstPath}/${secondPath}/`
+
+  if (file.gametype){
+    fullFilePath += `${slugify(file.gametype)}`
+  }
+
+  return fullFilePath
+}
+
+function createDownloadQueue(){
+  l('Downloading files to disk')
+  const files = readFileJson(FILE_METADATA_PATH)
+
+  files.forEach(async (file, i)=> {
+    l(`Queuing item ${i + 1}/${files.length} (${file.name})`)
+    queue.push(file)
+  })
+
+  if (!existsSync(DOWNLOAD_QUEUE_PATH)) {
+    l('Creating download queue')
+    writeFileSync(DOWNLOAD_QUEUE_PATH, JSON.stringify(queue), {})
+  }
+}
+
+async function download(file, resolve, reject){
+
+  try {
+    const fullFilePath = getFullFilePath(file);
+
+    if (!existsSync(`${fullFilePath}/${file.originalFilename}`)){
+      l(`Downloading ${file.name}`)
+      // console.log(file.downloads);
+      const url = file?.downloads?.reduce((downloadPath) => {
+        return downloadPath?.url?.includes("f002.backblazeb2.com") ? downloadPath.url : file.downloads[0].url
+      })
+
+
+      try {
+
+        // annoyingly, fetch doesnt support HTTP2 so random requests fail!
+        // const res = await fetch(typeof url === "string" ? url :  url.url)
+        // const binary = await res.arrayBuffer()
+
+        // using axios instead
+        const { data } = await axios(typeof url === "string" ? url :  url.url, { responseType: "arraybuffer"});
+
+        outputFile(`${fullFilePath}/${file.originalFilename}`, Buffer.from(new Uint8Array(data)))
+        l(`Finished downloading ${file.name}`)
+
+      }
+      catch (e){
+        l(`FAILED DOWNLOAD: ${url}`)
+        failedItems.push(file);
+      }
+
+    }
+
+    resolve()
+
+
+  }
+  catch (e){
+    l(`ERROR: DOWNLOAD FAILED`)
+    l(`ERROR: ${e}`)
+    reject()
+  }
+
 }
 
 async function gatherYamlSourceFiles () {
@@ -59,7 +141,7 @@ async function gatherYamlSourceFiles () {
 
       const files = fileFinder.sync()
       l(`Found ${files.length} files.`)
-      writeFileSync(YAML_SOURCE_FILES_PATH, JSON.stringify(files))
+      writeFileSync(YAML_SOURCE_FILES_PATH, JSON.stringify(files), {})
       l('Writing new file')
 
       resolve()
@@ -78,15 +160,54 @@ function readFileYaml (path) {
   const str = String(readFileSync(path))
 
   const cleaned = str
-    .replace('--- !<MAP>', '')
-    .replace('--- !<MAP_PACK>', '')
-    .replace('--- !<MUTATOR>', '')
-    .replace('--- !<MODEL>', '')
-    .replace('--- !<SKIN>', '')
-    .replace('--- !<VOICE>', '')
+    .replaceAll('--- !<MAP>', '')
+    .replaceAll('--- !<MAP_PACK>', '')
+    .replaceAll('--- !<MUTATOR>', '')
+    .replaceAll('--- !<MODEL>', '')
+    .replaceAll('--- !<SKIN>', '')
+    .replaceAll('--- !<VOICE>', '')
 
   return parseYAML(cleaned)
 }
+
+async function resumeDownload(){
+  const queue = readFileJson(DOWNLOAD_QUEUE_PATH)
+  l(`Downloading ${queue.length} items`);
+
+  if (queue.length){
+    const segment = queue.splice(0, CONCURRENCY_LIMIT);
+    const promises = [];
+    segment.forEach((file, i) => {
+      promises.push(new Promise((resolve, reject) => {
+        download(file, resolve, reject);
+      }))
+    });
+
+    console.log("promises...");
+    console.log(promises);
+    await Promise.all(promises);
+    queue.splice(0, CONCURRENCY_LIMIT)
+
+    // overwrite our previous queue with a new one
+    writeFileSync(DOWNLOAD_QUEUE_PATH, JSON.stringify(queue))
+
+    console.log("resuming...");
+
+    // recursivity!
+    resumeDownload()
+  }
+  else {
+    l(`Did nothing`);
+    l(`Writing failed files....`)
+
+    writeFileSync(FAILED_DOWNLOADS, JSON.stringify(failedItems))
+
+
+  }
+
+
+}
+
 
 console.log(`
 *******************************
@@ -96,6 +217,18 @@ console.log(`
 UNREAL_METADATA_PATH: ${UNREAL_METADATA_PATH}
 `)
 
-// only uncomment this if you want a fresh crawl
-await gatherYamlSourceFiles()
-createFileMeta()
+// // only uncomment this if you want a fresh crawl
+// await gatherYamlSourceFiles()
+// await createFileMeta()
+
+// create a queue of files
+if (existsSync(DOWNLOAD_QUEUE_PATH)) {
+  resumeDownload();
+}
+else {
+  await createDownloadQueue()
+  resumeDownload();
+}
+
+
+
