@@ -11,6 +11,8 @@ import { fdir } from 'fdir';
 import { parse as parseYAML } from 'yaml';
 
 // const UNREAL_METADATA_PATH = '../unreal-archive-data/content/Unreal Tournament/Maps/BunnyTrack'
+
+const OUTPUT_PATH = "../unrealarchive";
 const UNREAL_METADATA_PATH = '../unreal-archive-data/content'
 const YAML_SOURCE_FILES_PATH = './yaml-source-files.json'
 // const FILE_METADATA_PATH = './file-metadata-small-sample.json'
@@ -56,7 +58,7 @@ function createFileMeta () {
 }
 
 function getFullFilePath(file){
-  const firstPath = `../unrealarchive/${slugify(file.game)}`;
+  const firstPath = `${OUTPUT_PATH}/${slugify(file.game)}`;
   const secondPath = slugify(`${file.contentType}s`)
   let fullFilePath = `${firstPath}/${secondPath}/`
 
