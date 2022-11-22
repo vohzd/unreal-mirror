@@ -218,8 +218,8 @@ UNREAL_METADATA_PATH: ${UNREAL_METADATA_PATH}
 `)
 
 // // only uncomment this if you want a fresh crawl
-// await gatherYamlSourceFiles()
-// await createFileMeta()
+await gatherYamlSourceFiles()
+await createFileMeta()
 
 // create a queue of files
 if (existsSync(DOWNLOAD_QUEUE_PATH)) {
