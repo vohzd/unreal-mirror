@@ -11,32 +11,38 @@ console.log(`
 
 
 (async () => {
+
+  // ensure our db exists
+  await sequelize.sync();
+
+  // get a list of all our directories
   const directories = await gatherSourceFileDirectories()
 
 
-  await sequelize.sync();
+  // convert yaml files in these dirs to a JS object (in memory)
+  const metadata = [];
 
   directories.forEach(async (path) => {
     console.log(`Reading from ${path}`);
+    const json = convertYamlToJson(path)
 
-    const { contentType, author, description, firstIndex, game, name, releaseDate, attachments, originalFilename, hash, fileSize, files, dependencies, downloads, gametype } = convertYamlToJson(path)
-
-    if (contentType === "MAP") {
-
-      Map.create({
-        author, description, firstIndex, game, name, releaseDate, attachments, originalFilename, hash, fileSize, files, dependencies, downloads, gametype
-      });
-      console.log("dobe,,,,");
+    if (json.contentType === "MAP") {
+      metadata.push(json)
     }
 
   })
 
+  console.log("PARSED METADATA!");
+  console.log(metadata);
+  // write to sqlite db
+
+  Map.bulkCreate(metadata);
 
   // created everything, now dump them
-
-  const map = await Map.findAll();
-  console.log(JSON.stringify(map));
-  console.log("found a map!");
+  console.log("bulk create finished...");
+  console.log("reading..");
+  const maps = await Map.findAll();
+  console.log(JSON.stringify(maps));
 
 })();
 
