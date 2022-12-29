@@ -9,3 +9,5 @@ access.json
 .nuxt
 
 dist
+data
+temp
