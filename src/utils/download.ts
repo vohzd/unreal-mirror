@@ -15,7 +15,7 @@ export async function downloadAll() {
     where: {
       downloaded: 0
     },
-    limit: 150,
+    limit: 50,
   })
 
 
@@ -31,13 +31,18 @@ export async function downloadAll() {
     if (!parsed.downloads) {
       return;
     }
-    // choose a decent cdn
-    const { url } = (parsed.downloads).find((downloadPath) => {
-      return downloadPath?.url?.includes("f002.backblazeb2.com") ||
-        downloadPath?.url?.includes("unreal-archive-files.eu-central-1.linodeobjects.com") ||
-        downloadPath?.url?.includes("files.vohzd.com/unrealarchive")
-    })
-    // const file2 = JSON.parse(JSON.stringify(file))
+
+    // choose a random index between 1 and 3, so we don't DoS the server
+    const randomIndex = Math.floor(Math.random() * (3 - 1 + 1) + 1)
+    const url = parsed.downloads[randomIndex]?.url || parsed.downloads[0]?.url
+
+    // // choose a decent cdn
+    // const { url } = (parsed.downloads).find((downloadPath) => {
+    //   return downloadPath?.url?.includes("f002.backblazeb2.com") ||
+    //     downloadPath?.url?.includes("unreal-archive-files.eu-central-1.linodeobjects.com") ||
+    //     downloadPath?.url?.includes("files.vohzd.com/unrealarchive")
+    // })
+    // // const file2 = JSON.parse(JSON.stringify(file))
 
 
     l(`Downloading ${file.name} from ${url}`)
@@ -48,8 +53,8 @@ export async function downloadAll() {
         const binary = await res.arrayBuffer()
         outputFile(`${contentPath}/${file.originalFilename}`, Buffer.from(new Uint8Array(binary)))
         file.update({ downloaded: 1 })
-        l(`Finished downloading ${file.name}`)
-        await downloadAll();
+        l(`Finished downloading ${file.name} from ${url}`)
+        // await downloadAll();
       }
       else l(`NO VALID URL`)
     }
