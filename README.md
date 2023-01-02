@@ -1,14 +1,13 @@
 # unreal-mirror
 
-clone this first!
-https://github.com/unreal-archive/unreal-archive-data
+This batch downloads items from the unrealarchive.org to disk in a JavaScripty way.
 
-then run `npm start` for a full index (this will take forever, and download 300GB to disk (58k files)
+To run, first
 
-set `UNREAL_METADATA_PATH` to a smaller folder for a smaller index (and delete all your .json data files)
+`npm install && npm run createIndex` to download the metadata and create a SQLite database.
 
-For example;
+To commence the downloads themselves;
 
-```
-const UNREAL_METADATA_PATH = '../unreal-archive-data/content/Unreal Tournament/Maps/BunnyTrack'
-```
+`npm run download`
+
+The source is written in TypeScript, so change any of the contents of `src/*` then run `npm run compile` to apply your changes.
