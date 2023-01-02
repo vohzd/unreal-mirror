@@ -5,11 +5,9 @@ import { sequelize } from "../db/sequelize.js";
 import { defineContentPath } from "./defineContentPath.js";
 import { l } from "./logger.js";
 
-export async function downloadAll() {
-  l("DOWNLOADINg!")
+export async function download() {
   // ensure our db exists
   await sequelize.sync();
-
 
   const content = await Content.findAll({
     where: {
@@ -18,12 +16,8 @@ export async function downloadAll() {
     limit: 50,
   })
 
-
-  // const parsed = JSON.parse(maps);
-
   // todo, add sequelize types
   content.forEach(async (file: any) => {
-
 
     // hack until i figure out how to just get the data of the instance...
     const parsed = JSON.parse(JSON.stringify(file));
@@ -36,15 +30,6 @@ export async function downloadAll() {
     const randomIndex = Math.floor(Math.random() * (3 - 1 + 1) + 1)
     const url = parsed.downloads[randomIndex]?.url || parsed.downloads[0]?.url
 
-    // // choose a decent cdn
-    // const { url } = (parsed.downloads).find((downloadPath) => {
-    //   return downloadPath?.url?.includes("f002.backblazeb2.com") ||
-    //     downloadPath?.url?.includes("unreal-archive-files.eu-central-1.linodeobjects.com") ||
-    //     downloadPath?.url?.includes("files.vohzd.com/unrealarchive")
-    // })
-    // // const file2 = JSON.parse(JSON.stringify(file))
-
-
     l(`Downloading ${file.name} from ${url}`)
     try {
       if (url) {
@@ -54,7 +39,6 @@ export async function downloadAll() {
         outputFile(`${contentPath}/${file.originalFilename}`, Buffer.from(new Uint8Array(binary)))
         file.update({ downloaded: 1 })
         l(`Finished downloading ${file.name} from ${url}`)
-        // await downloadAll();
       }
       else l(`NO VALID URL`)
     }
@@ -63,5 +47,5 @@ export async function downloadAll() {
       console.log(e);
     }
 
-  })
+  }) // end loop
 }

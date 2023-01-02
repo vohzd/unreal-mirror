@@ -1,6 +1,6 @@
 
 import { createIndex } from "./utils/createIndex.js";
-import { downloadAll } from "./utils/download.js";
+import { download } from "./utils/download.js";
 console.log(`
 *******************************
 ***** UNREAL FILE FINDER ******
@@ -8,23 +8,18 @@ console.log(`
 `);
 
 (async () => {
-
   const arg = process.argv[2]
-
   if (arg === "--createIndex") {
     await createIndex();
   }
-  if (arg === "--downloadAll") {
+  if (arg === "--download") {
     console.log("downloading all...");
-    await downloadAll();
-
+    await download();
+    setInterval(async () => {
+      console.log("next batch...");
+      await download();
+    }, 20000)
   }
-
-
-
-
-
-
 })();
 
 

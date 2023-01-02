@@ -8,7 +8,7 @@
     "start": "node ./lib/index.js",
     "dev": "npm run compile && npm start",
     "createIndex": "node ./lib/index.js --createIndex",
-    "downloadAll": "node ./lib/index.js --downloadAll",
+    "download": "node ./lib/index.js --download",
     "filesystem": "node filesystem.js"
   },
   "keywords": [],
