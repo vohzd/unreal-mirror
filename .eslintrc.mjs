@@ -6,13 +6,9 @@ module.exports = {
   },
   "extends": [
     "eslint:recommended",
-    "@nuxtjs",
     "prettier"
   ],
   "parserOptions": {
-    "ecmaFeatures": {
-      "jsx": true
-    },
     "ecmaVersion": 12,
     "sourceType": "module"
   },

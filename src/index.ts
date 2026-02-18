@@ -7,6 +7,8 @@ console.log(`
 *******************************
 `);
 
+const test = 'yet'
+
 (async () => {
   const arg = process.argv[2]
   if (arg === "--createIndex") {
